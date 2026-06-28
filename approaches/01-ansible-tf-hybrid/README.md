@@ -166,7 +166,15 @@ source env.sh
 terraform apply
 ```
 
-> Authenticated users receive the `default` Vault policy, which grants access to the personal cubbyhole only. See `FUTURE.md` for planned improvements.
+**Group-based access (optional)**
+
+If your IdP app registration is configured to include group membership in the OIDC token (EntraID: Token configuration → Add groups claim → Security groups), you can map IdP groups to Vault policies via `local/oidc.env`:
+
+```bash
+export TF_VAR_oidc_group_ids='{"secret-reader": "<object-id>", "secret-writer": "<object-id>", "pki-admin": "<object-id>"}'
+```
+
+Omit any key you don't want wired up. `pki-admin` is ignored unless `enable_pki=true`. Vault external identity groups are created automatically on `terraform apply`, with aliases mapping each IdP group object ID to its corresponding policy (`secret-reader`, `secret-writer`, `pki-admin`).
 
 ### PKI (optional)
 
@@ -205,6 +213,15 @@ ansible-playbook configure-tls.yml
 ```
 
 After step 3, `local/vault-ca.pem` exists and `env.sh` automatically switches from `VAULT_SKIP_VERIFY=true` to `VAULT_CACERT` on subsequent runs. `local/pki.env` is also now in place, so all future `source env.sh && terraform apply` invocations work without any overrides.
+
+**PKI roles**
+
+Two roles are configured on the intermediate CA:
+
+- `issue` — Vault generates an Ed25519 key and issues the certificate. Use for automated cert provisioning where key generation is delegated to Vault.
+- `sign` — Vault signs a caller-supplied CSR; any key type accepted. Use when the private key must be generated externally.
+
+Both roles restrict issuance to subdomains of `local.example.com` by default (configurable via `pki_allowed_domain`). Default TTL is 30 days, max 1 year (`pki_default_ttl` / `pki_max_ttl`).
 
 ### Intermediate CA rotation
 

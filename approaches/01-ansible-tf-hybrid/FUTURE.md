@@ -23,16 +23,6 @@ After the playbook, `terraform apply` re-stamps the issuer config (AIA/CRL/OCSP 
 - Copy `local/vault-ca.pem` to the remote host in a pre-task and reference it in role defaults
 - Or accept that TLS skip-verify in Ansible bootstrap is a deliberate trade-off (Ansible runs over SSH; the TLS hop is localhost → localhost)
 
-## OIDC
-
-### Non-trivial default policy
-
-Any user authenticated via OIDC currently receives the `default` policy, which grants access to the cubbyhole only. For the lab to be usable via browser login, a small policy granting at minimum read access to `secret/` should be created and assigned as the default role's `token_policies`.
-
-### EntraID group claims → Vault policies
-
-EntraID can include group membership in the OIDC token. Mapping groups to Vault policies via `bound_claims` on the OIDC role is the natural next step for multi-user policy differentiation. Requires configuring the app registration to include group claims in the token.
-
 ## Testing
 
 ### Full reset → bootstrap cycle validation
