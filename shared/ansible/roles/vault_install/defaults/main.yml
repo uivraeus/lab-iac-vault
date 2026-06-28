@@ -1,0 +1,9 @@
+---
+vault_install_version: latest
+vault_install_data_dir: /opt/vault/data
+vault_install_listener_address: "0.0.0.0:8200"
+vault_install_tls_disable: false
+vault_install_tls_dir: /etc/vault.d/tls
+vault_install_tls_cert_file: /etc/vault.d/tls/vault-cert.pem
+vault_install_tls_key_file: /etc/vault.d/tls/vault-key.pem
+vault_install_ui: true

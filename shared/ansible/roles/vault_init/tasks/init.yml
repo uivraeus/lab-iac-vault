@@ -1,0 +1,46 @@
+---
+- name: Get Vault status
+  ansible.builtin.include_role:
+    name: vault_status
+  vars:
+    vault_status_addr: "{{ vault_init_addr }}"
+
+- name: Run vault operator init
+  ansible.builtin.command: >-
+    vault operator init
+    -key-shares={{ vault_init_key_shares }}
+    -key-threshold={{ vault_init_key_threshold }}
+    -format=json
+  environment:
+    VAULT_ADDR: "{{ vault_init_addr }}"
+    VAULT_SKIP_VERIFY: "{{ vault_init_tls_skip_verify | lower }}"
+  register: vault_init_result
+  when: not vault_status_initialized
+  changed_when: true
+  no_log: true
+
+- name: Ensure output directory exists on control node
+  ansible.builtin.file:
+    path: "{{ vault_init_output_dir }}"
+    state: directory
+    mode: "0700"
+  delegate_to: localhost
+  become: false
+
+- name: Save init output to control node
+  ansible.builtin.copy:
+    content: "{{ vault_init_result.stdout }}"
+    dest: "{{ vault_init_output_dir }}/vault-{{ inventory_hostname }}.json"
+    mode: "0600"
+  delegate_to: localhost
+  when: not vault_status_initialized
+
+- name: Unseal Vault with init keys
+  ansible.builtin.command: "vault operator unseal {{ item }}"
+  environment:
+    VAULT_ADDR: "{{ vault_init_addr }}"
+    VAULT_SKIP_VERIFY: "{{ vault_init_tls_skip_verify | lower }}"
+  loop: "{{ (vault_init_result.stdout | from_json).unseal_keys_b64[: (vault_init_key_threshold | int)] }}"
+  when: not vault_status_initialized
+  changed_when: true
+  no_log: true

@@ -1,0 +1,10 @@
+vault_pki_addr: "https://127.0.0.1:8200"
+vault_pki_tls_skip_verify: true
+vault_pki_root_path: "pki"
+vault_pki_int_path: "pki_int"
+vault_pki_int_common_name: "Lab Intermediate CA"
+vault_pki_int_ttl: "43800h"
+vault_pki_server_cert_ttl: "720h"
+vault_pki_tls_cert_file: /etc/vault.d/tls/vault-cert.pem
+vault_pki_tls_key_file: /etc/vault.d/tls/vault-key.pem
+vault_pki_output_dir: "local"

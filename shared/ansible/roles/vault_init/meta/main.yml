@@ -1,0 +1,8 @@
+---
+galaxy_info:
+  role_name: vault_init
+  author: local
+  description: Initialize Vault and perform first unseal
+  license: MIT
+  min_ansible_version: "2.14"
+dependencies: []

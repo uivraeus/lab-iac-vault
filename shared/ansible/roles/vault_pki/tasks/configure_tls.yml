@@ -1,0 +1,57 @@
+---
+- name: Assert VAULT_ROOT_TOKEN is set
+  ansible.builtin.assert:
+    that: lookup('env', 'VAULT_ROOT_TOKEN') != ''
+    fail_msg: "VAULT_ROOT_TOKEN env var must be set"
+
+- name: Issue TLS certificate from intermediate CA
+  ansible.builtin.command: >-
+    vault write -format=json {{ vault_pki_int_path }}/issue/server
+    common_name="{{ inventory_hostname }}"
+    ip_sans="127.0.0.1,{{ ansible_host }}"
+    alt_names="{{ inventory_hostname }}"
+    ttl="{{ vault_pki_server_cert_ttl }}"
+  environment:
+    VAULT_ADDR: "{{ vault_pki_addr }}"
+    VAULT_TOKEN: "{{ lookup('env', 'VAULT_ROOT_TOKEN') }}"
+    VAULT_SKIP_VERIFY: "{{ vault_pki_tls_skip_verify | lower }}"
+  register: vault_pki_cert_result
+  changed_when: true
+  no_log: true
+
+- name: Write TLS certificate chain to Vault server
+  ansible.builtin.copy:
+    content: |
+      {{ (vault_pki_cert_result.stdout | from_json).data.certificate }}
+      {{ (vault_pki_cert_result.stdout | from_json).data.issuing_ca }}
+    dest: "{{ vault_pki_tls_cert_file }}"
+    owner: vault
+    group: vault
+    mode: "0644"
+  notify: Restart Vault
+
+- name: Write TLS private key to Vault server
+  ansible.builtin.copy:
+    content: "{{ (vault_pki_cert_result.stdout | from_json).data.private_key }}"
+    dest: "{{ vault_pki_tls_key_file }}"
+    owner: vault
+    group: vault
+    mode: "0640"
+  notify: Restart Vault
+  no_log: true
+
+- name: Read root CA certificate
+  ansible.builtin.command: vault read -format=json {{ vault_pki_root_path }}/issuer/root
+  environment:
+    VAULT_ADDR: "{{ vault_pki_addr }}"
+    VAULT_TOKEN: "{{ lookup('env', 'VAULT_ROOT_TOKEN') }}"
+    VAULT_SKIP_VERIFY: "{{ vault_pki_tls_skip_verify | lower }}"
+  register: vault_pki_root_ca_result
+  changed_when: false
+
+- name: Save root CA certificate to controller
+  ansible.builtin.copy:
+    content: "{{ (vault_pki_root_ca_result.stdout | from_json).data.certificate }}"
+    dest: "{{ vault_pki_output_dir }}/vault-ca.pem"
+    mode: "0644"
+  delegate_to: localhost

@@ -1,0 +1,8 @@
+---
+galaxy_info:
+  role_name: vault_status
+  author: local
+  description: Check Vault status and expose vault_status_initialized and vault_status_sealed facts
+  license: MIT
+  min_ansible_version: "2.14"
+dependencies: []

@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+set -e
+
+# Collect staged Ansible files (roles, playbooks, tasks, handlers, vars, defaults, templates)
+ansible_files=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(yml|yaml|j2)$' | grep -E '^shared/ansible/|^approaches/.*/ansible/' || true)
+
+if [ -z "$ansible_files" ]; then
+  exit 0
+fi
+
+if ! command -v ansible-lint >/dev/null 2>&1; then
+  echo "ansible-lint not found, skipping check"
+  exit 0
+fi
+
+echo "Running ansible-lint..."
+echo "$ansible_files" | xargs ansible-lint

@@ -1,0 +1,77 @@
+---
+- name: Assert VAULT_ROOT_TOKEN is set
+  ansible.builtin.assert:
+    that: lookup('env', 'VAULT_ROOT_TOKEN') != ''
+    fail_msg: "VAULT_ROOT_TOKEN env var must be set"
+
+- name: Check for existing intermediate issuers
+  ansible.builtin.command: vault list -format=json {{ vault_pki_int_path }}/issuers
+  environment:
+    VAULT_ADDR: "{{ vault_pki_addr }}"
+    VAULT_TOKEN: "{{ lookup('env', 'VAULT_ROOT_TOKEN') }}"
+    VAULT_SKIP_VERIFY: "{{ vault_pki_tls_skip_verify | lower }}"
+  register: vault_pki_issuers
+  changed_when: false
+  failed_when: vault_pki_issuers.rc not in [0, 2]
+
+- name: Generate intermediate CA CSR
+  ansible.builtin.command: >-
+    vault write -format=json {{ vault_pki_int_path }}/intermediate/generate/internal
+    common_name="{{ vault_pki_int_common_name }}"
+    ttl="{{ vault_pki_int_ttl }}"
+  environment:
+    VAULT_ADDR: "{{ vault_pki_addr }}"
+    VAULT_TOKEN: "{{ lookup('env', 'VAULT_ROOT_TOKEN') }}"
+    VAULT_SKIP_VERIFY: "{{ vault_pki_tls_skip_verify | lower }}"
+  register: vault_pki_csr_result
+  changed_when: true
+  when: vault_pki_issuers.rc == 2
+
+- name: Write CSR to temp file  # noqa: no-handler
+  ansible.builtin.copy:
+    content: "{{ (vault_pki_csr_result.stdout | from_json).data.csr }}"
+    dest: /tmp/vault-int-csr.pem
+    mode: "0600"
+  when: vault_pki_csr_result is changed
+
+- name: Sign intermediate CSR with root CA  # noqa: no-handler
+  ansible.builtin.command: >-
+    vault write -format=json {{ vault_pki_root_path }}/root/sign-intermediate
+    csr=@/tmp/vault-int-csr.pem
+    format=pem_bundle
+    ttl="{{ vault_pki_int_ttl }}"
+  environment:
+    VAULT_ADDR: "{{ vault_pki_addr }}"
+    VAULT_TOKEN: "{{ lookup('env', 'VAULT_ROOT_TOKEN') }}"
+    VAULT_SKIP_VERIFY: "{{ vault_pki_tls_skip_verify | lower }}"
+  register: vault_pki_signed_result
+  changed_when: true
+  when: vault_pki_csr_result is changed
+
+- name: Write signed certificate to temp file  # noqa: no-handler
+  ansible.builtin.copy:
+    content: "{{ (vault_pki_signed_result.stdout | from_json).data.certificate }}"
+    dest: /tmp/vault-int-signed.pem
+    mode: "0600"
+  when: vault_pki_signed_result is changed
+
+- name: Import signed certificate into intermediate mount  # noqa: no-handler
+  ansible.builtin.command: >-
+    vault write {{ vault_pki_int_path }}/intermediate/set-signed
+    certificate=@/tmp/vault-int-signed.pem
+  environment:
+    VAULT_ADDR: "{{ vault_pki_addr }}"
+    VAULT_TOKEN: "{{ lookup('env', 'VAULT_ROOT_TOKEN') }}"
+    VAULT_SKIP_VERIFY: "{{ vault_pki_tls_skip_verify | lower }}"
+  changed_when: true
+  when: vault_pki_signed_result is changed
+
+- name: Remove temp CSR file
+  ansible.builtin.file:
+    path: /tmp/vault-int-csr.pem
+    state: absent
+
+- name: Remove temp signed cert file
+  ansible.builtin.file:
+    path: /tmp/vault-int-signed.pem
+    state: absent

@@ -1,0 +1,59 @@
+---
+# Removes Vault from the target and cleans up control node credential files.
+# Set vault_reset_purge=true to also remove the HashiCorp apt repo and GPG key.
+- name: Reset Vault installation
+  hosts: all
+  become: true
+  vars:
+    vault_reset_purge: false
+    vault_reset_data_dir: /opt/vault/data
+    vault_reset_output_dir: "{{ playbook_dir }}/../../local"
+
+  tasks:
+    - name: Stop and disable vault service
+      ansible.builtin.systemd:
+        name: vault
+        state: stopped
+        enabled: false
+      failed_when: false
+
+    - name: Remove vault package
+      ansible.builtin.apt:
+        name: vault
+        state: absent
+        purge: true
+
+    - name: Remove vault config directory
+      ansible.builtin.file:
+        path: /etc/vault.d
+        state: absent
+
+    - name: Remove vault data directory
+      ansible.builtin.file:
+        path: "{{ vault_reset_data_dir }}"
+        state: absent
+
+    - name: Remove HashiCorp apt repo
+      ansible.builtin.apt_repository:
+        repo: "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com {{ ansible_distribution_release }} main"
+        filename: hashicorp
+        state: absent
+      when: vault_reset_purge | bool
+
+    - name: Remove HashiCorp GPG key
+      ansible.builtin.file:
+        path: /usr/share/keyrings/hashicorp-archive-keyring.gpg
+        state: absent
+      when: vault_reset_purge | bool
+
+    - name: Remove local credential files
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - "{{ vault_reset_output_dir }}/vault-{{ inventory_hostname }}.json"
+        - "{{ vault_reset_output_dir }}/terraform-operator-{{ inventory_hostname }}.env"
+        - "{{ vault_reset_output_dir }}/vault-ca.pem"
+        - "{{ vault_reset_output_dir }}/pki.env"
+      delegate_to: localhost
+      become: false
