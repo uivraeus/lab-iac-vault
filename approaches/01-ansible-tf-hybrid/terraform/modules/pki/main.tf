@@ -42,19 +42,36 @@ resource "vault_pki_secret_backend_issuer" "intermediate" {
   ocsp_servers            = ["${var.vault_addr}/v1/${var.pki_int_path}/ocsp"]
 }
 
-resource "vault_pki_secret_backend_role" "server" {
-  backend     = vault_mount.pki_int.path
-  name        = "server"
-  issuer_ref  = "default"
-  key_type    = "rsa"
-  key_bits    = 2048
-  ttl         = var.pki_server_role_ttl
-  max_ttl     = var.pki_server_role_max_ttl
-  allow_any_name      = true
-  allow_ip_sans       = true
-  allow_localhost     = true
-  server_flag         = true
-  client_flag         = false
+resource "vault_pki_secret_backend_role" "issue" {
+  backend        = vault_mount.pki_int.path
+  name           = "issue"
+  issuer_ref     = "default"
+  key_type       = "ed25519"
+  ttl            = var.pki_default_ttl
+  max_ttl        = var.pki_max_ttl
+  allow_any_name = false
+  allowed_domains = [var.pki_allowed_domain]
+  allow_subdomains = true
+  allow_ip_sans  = true
+  allow_localhost = true
+  server_flag    = true
+  client_flag    = false
+}
+
+resource "vault_pki_secret_backend_role" "sign" {
+  backend        = vault_mount.pki_int.path
+  name           = "sign"
+  issuer_ref     = "default"
+  key_type       = "any"
+  ttl            = var.pki_default_ttl
+  max_ttl        = var.pki_max_ttl
+  allow_any_name = false
+  allowed_domains = [var.pki_allowed_domain]
+  allow_subdomains = true
+  allow_ip_sans  = true
+  allow_localhost = true
+  server_flag    = true
+  client_flag    = false
 }
 
 resource "vault_policy" "pki_admin" {

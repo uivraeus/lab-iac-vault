@@ -45,14 +45,20 @@ variable "pki_intermediate_ready" {
   default     = true
 }
 
-variable "pki_server_role_ttl" {
-  description = "Default TTL for server certificates in seconds (default 30 days)"
+variable "pki_allowed_domain" {
+  description = "Domain suffix for which the intermediate CA may issue certificates"
   type        = string
-  default     = "2592000"
+  default     = "local.example.com"
 }
 
-variable "pki_server_role_max_ttl" {
-  description = "Maximum TTL for server certificates in seconds (default 1 year)"
+variable "pki_default_ttl" {
+  description = "Default TTL for issued certificates (default 30 days)"
   type        = string
-  default     = "31536000"
+  default     = "720h"
+}
+
+variable "pki_max_ttl" {
+  description = "Maximum TTL for issued certificates (default 1 year)"
+  type        = string
+  default     = "8760h"
 }

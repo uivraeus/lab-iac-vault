@@ -24,11 +24,12 @@ elif [[ "${VAULT_SKIP_VERIFY:-}" == "true" ]]; then
   curl_tls_args+=(-k)
 fi
 
-TEST_CN="${TEST_CN:-vault-test.lab.local}"
+TEST_CN="${TEST_CN:-vault-test.local.example.com}"
 TEST_IP_SANS="${TEST_IP_SANS:-127.0.0.1}"
-TEST_DNS_SANS="${TEST_DNS_SANS:-vault-test.lab.local}"
+TEST_DNS_SANS="${TEST_DNS_SANS:-vault-test.local.example.com}"
+TEST_DENIED_CN="${TEST_DENIED_CN:-vault-test.lab.local}"
 PKI_INT_PATH="${PKI_INT_PATH:-pki_int}"
-PKI_ROLE="${PKI_ROLE:-server}"
+PKI_ROLE="${PKI_ROLE:-issue}"
 
 pass=0
 fail=0
@@ -78,6 +79,25 @@ check "CRL Distribution Point"      "URI:https?://[^[:space:]]*/crl"     "$cert_
 check "AIA: OCSP endpoint"          "OCSP - URI:https?://"               "$cert_text"
 check "AIA: CA Issuers endpoint"    "CA Issuers - URI:https?://"         "$cert_text"
 check "EKU: TLS Web Server Auth"    "TLS Web Server Authentication"      "$cert_text"
+check "Key algorithm: Ed25519"       "Public Key Algorithm: ED25519"        "$cert_text"
+
+denied_body=$(jq -n --arg cn "$TEST_DENIED_CN" '{"common_name": $cn, "ttl": "1h"}')
+denied_response=$(curl -s \
+  -X POST \
+  -H "X-Vault-Token: $VAULT_TOKEN" \
+  -H "Content-Type: application/json" \
+  "${curl_tls_args[@]}" \
+  "$VAULT_ADDR/v1/${PKI_INT_PATH}/issue/${PKI_ROLE}" \
+  -d "$denied_body")
+
+denied_error=$(echo "$denied_response" | jq -r '.errors[0] // empty')
+if echo "$denied_error" | grep -qE "not allowed by this role"; then
+  printf "[PASS] Disallowed domain rejected (%s)\n" "$denied_error"
+  pass=$((pass + 1))
+else
+  printf "[FAIL] Disallowed domain should have been rejected (got: %s)\n" "$denied_error"
+  fail=$((fail + 1))
+fi
 
 echo ""
 printf "Results: %d passed, %d failed\n" "$pass" "$fail"
