@@ -56,3 +56,9 @@ variable "oidc_client_secret" {
   default     = ""
   sensitive   = true
 }
+
+variable "oidc_group_ids" {
+  description = "Map of Vault policy name to IdP group object ID (keys: secret-reader, secret-writer, pki-admin)"
+  type        = map(string)
+  default     = {}
+}

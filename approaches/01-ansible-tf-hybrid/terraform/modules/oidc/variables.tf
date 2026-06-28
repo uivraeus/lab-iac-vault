@@ -18,3 +18,15 @@ variable "vault_external_addr" {
   description = "External Vault address used in OIDC redirect URIs"
   type        = string
 }
+
+variable "oidc_group_ids" {
+  description = "Map of Vault policy name to IdP group object ID. Omit a key to skip creating that group alias."
+  type        = map(string)
+  default     = {}
+}
+
+variable "enable_pki" {
+  description = "When false, the pki-admin entry is excluded from oidc_group_ids even if provided"
+  type        = bool
+  default     = false
+}

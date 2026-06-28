@@ -41,6 +41,22 @@ path "auth/oidc/*" {
   capabilities = ["create", "read", "update", "delete", "list"]
 }
 
+path "identity/group" {
+  capabilities = ["create", "read", "update", "delete", "list"]
+}
+
+path "identity/group/*" {
+  capabilities = ["create", "read", "update", "delete", "list"]
+}
+
+path "identity/group-alias" {
+  capabilities = ["create", "read", "update", "delete", "list"]
+}
+
+path "identity/group-alias/*" {
+  capabilities = ["create", "read", "update", "delete", "list"]
+}
+
 # Used by the Vault Terraform provider to check its own capabilities on startup
 path "sys/capabilities-self" {
   capabilities = ["update"]
