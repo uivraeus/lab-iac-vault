@@ -25,6 +25,37 @@ module "kv" {
   source = "./modules/kv"
 }
 
+resource "vault_policy" "secret_reader" {
+  name = "secret-reader"
+  policy = <<-EOT
+    path "secret/data/*" {
+      capabilities = ["read", "list"]
+    }
+    path "secret/metadata/*" {
+      capabilities = ["read", "list"]
+    }
+  EOT
+}
+
+resource "vault_policy" "secret_writer" {
+  name = "secret-writer"
+  policy = <<-EOT
+    path "secret/data/*" {
+      capabilities = ["create", "read", "update", "delete", "list"]
+    }
+    path "secret/metadata/*" {
+      capabilities = ["read", "list"]
+    }
+    path "secret/delete/*" {
+      capabilities = ["update"]
+    }
+    path "secret/undelete/*" {
+      capabilities = ["update"]
+    }
+  EOT
+}
+
+
 module "pki" {
   count  = var.enable_pki ? 1 : 0
   source = "./modules/pki"

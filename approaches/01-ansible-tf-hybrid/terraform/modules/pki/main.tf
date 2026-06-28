@@ -57,6 +57,24 @@ resource "vault_pki_secret_backend_role" "server" {
   client_flag         = false
 }
 
+resource "vault_policy" "pki_admin" {
+  name = "pki-admin"
+  policy = <<-EOT
+    path "${var.pki_int_path}/issue/*" {
+      capabilities = ["update"]
+    }
+    path "${var.pki_int_path}/sign/*" {
+      capabilities = ["update"]
+    }
+    path "${var.pki_int_path}/roles" {
+      capabilities = ["list"]
+    }
+    path "${var.pki_int_path}/roles/*" {
+      capabilities = ["read"]
+    }
+  EOT
+}
+
 resource "vault_pki_secret_backend_config_urls" "pki_int" {
   backend                 = vault_mount.pki_int.path
   issuing_certificates    = ["${var.vault_addr}/v1/${var.pki_int_path}/ca"]
