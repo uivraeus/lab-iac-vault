@@ -61,4 +61,8 @@ variable "oidc_group_ids" {
   description = "Map of Vault policy name to IdP group object ID (keys: secret-reader, secret-writer, pki-admin)"
   type        = map(string)
   default     = {}
+  validation {
+    condition     = length(setsubtract(keys(var.oidc_group_ids), ["secret-reader", "secret-writer", "pki-admin"])) == 0
+    error_message = "Valid keys are: secret-reader, secret-writer, pki-admin"
+  }
 }
