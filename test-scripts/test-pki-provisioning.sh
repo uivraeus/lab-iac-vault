@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Test leaf certificate issuance from pki_int using the pki-admin policy.
+# Test leaf certificate provisioning from pki_int using the pki-admin policy.
+# Covers both the issue role (Vault-generated key) and the sign role (caller CSR).
 # Verifies CN, SANs, CRL/AIA/OCSP extensions, Ed25519 key, and domain restriction.
 #
 # Required env vars: VAULT_ADDR (or TF_VAR_vault_addr), VAULT_TOKEN (or VAULT_ROOT_TOKEN)
