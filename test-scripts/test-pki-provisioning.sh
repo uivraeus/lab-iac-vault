@@ -83,6 +83,9 @@ fi
 
 cert=$(echo "$response" | jq -r '.data.certificate')
 cert_text=$(echo "$cert" | openssl x509 -text -noout)
+issuing_ca=$(echo "$response" | jq -r '.data.issuing_ca')
+issuer_fp=$(echo "$issuing_ca" | openssl x509 -noout -fingerprint -sha256 2>/dev/null | sed 's/SHA256 Fingerprint=//')
+echo "Issuing CA fingerprint: ${issuer_fp}"
 
 echo ""
 check "Subject CN"                  "Subject:.*CN[ ]*=[ ]*${TEST_CN}"   "$cert_text"

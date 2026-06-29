@@ -1,0 +1,63 @@
+---
+- name: Assert VAULT_ROOT_TOKEN is set
+  ansible.builtin.assert:
+    that: lookup('env', 'VAULT_ROOT_TOKEN') != ''
+    fail_msg: "VAULT_ROOT_TOKEN env var must be set"
+
+- name: Check for existing intermediate issuers
+  ansible.builtin.command: vault list -format=json {{ vault_pki_int_path }}/issuers
+  environment:
+    VAULT_ADDR: "{{ vault_pki_addr }}"
+    VAULT_TOKEN: "{{ lookup('env', 'VAULT_ROOT_TOKEN') }}"
+    VAULT_SKIP_VERIFY: "{{ vault_pki_tls_skip_verify | lower }}"
+  register: vault_pki_issuers_check
+  changed_when: false
+  failed_when: vault_pki_issuers_check.rc not in [0, 2]
+
+- name: Fail if no intermediate issuers exist
+  ansible.builtin.fail:
+    msg: "No intermediate issuers found in {{ vault_pki_int_path }} — run setup-intermediate.yml first"
+  when: vault_pki_issuers_check.rc == 2
+
+- name: Get current default issuer ID
+  ansible.builtin.command: vault read -format=json {{ vault_pki_int_path }}/config/issuers
+  environment:
+    VAULT_ADDR: "{{ vault_pki_addr }}"
+    VAULT_TOKEN: "{{ lookup('env', 'VAULT_ROOT_TOKEN') }}"
+    VAULT_SKIP_VERIFY: "{{ vault_pki_tls_skip_verify | lower }}"
+  register: vault_pki_default_issuer_result
+  changed_when: false
+
+- name: Set old default issuer ID fact
+  ansible.builtin.set_fact:
+    vault_pki_old_default_id: "{{ (vault_pki_default_issuer_result.stdout | from_json).data.default }}"
+
+- name: Generate new intermediate CA and import signed certificate
+  ansible.builtin.include_tasks: _generate_sign_import.yml
+
+- name: Set new issuer ID fact
+  ansible.builtin.set_fact:
+    vault_pki_new_issuer_id: "{{ (vault_pki_import_result.stdout | from_json).data.imported_issuers[0] }}"
+
+- name: Set retirement timestamp fact
+  ansible.builtin.set_fact:
+    vault_pki_retire_ts: "{{ lookup('pipe', 'date +%Y%m%dT%H%M%S') }}"
+
+- name: Rename old default issuer to retired
+  ansible.builtin.command: >-
+    vault write {{ vault_pki_int_path }}/issuer/{{ vault_pki_old_default_id }}
+    issuer_name="intermediate-retired-{{ vault_pki_retire_ts }}"
+  environment:
+    VAULT_ADDR: "{{ vault_pki_addr }}"
+    VAULT_TOKEN: "{{ lookup('env', 'VAULT_ROOT_TOKEN') }}"
+    VAULT_SKIP_VERIFY: "{{ vault_pki_tls_skip_verify | lower }}"
+  changed_when: true
+
+- name: Set new issuer as default
+  ansible.builtin.command: >-
+    vault write {{ vault_pki_int_path }}/config/issuers default={{ vault_pki_new_issuer_id }}
+  environment:
+    VAULT_ADDR: "{{ vault_pki_addr }}"
+    VAULT_TOKEN: "{{ lookup('env', 'VAULT_ROOT_TOKEN') }}"
+    VAULT_SKIP_VERIFY: "{{ vault_pki_tls_skip_verify | lower }}"
+  changed_when: true

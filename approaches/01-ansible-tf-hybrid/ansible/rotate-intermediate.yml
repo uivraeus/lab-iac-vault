@@ -1,0 +1,9 @@
+---
+- name: Rotate PKI intermediate CA
+  hosts: all
+  become: false
+  tasks:
+    - name: Rotate intermediate CA
+      ansible.builtin.include_role:
+        name: vault_pki
+        tasks_from: rotate

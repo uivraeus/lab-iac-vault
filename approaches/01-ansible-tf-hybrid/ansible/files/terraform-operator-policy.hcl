@@ -26,15 +26,15 @@ path "sys/mounts" {
 }
 
 path "pki/*" {
-  capabilities = ["create", "read", "update", "delete", "list"]
+  capabilities = ["create", "read", "update", "patch", "delete", "list"]
 }
 
 path "pki_int/*" {
-  capabilities = ["create", "read", "update", "delete", "list"]
+  capabilities = ["create", "read", "update", "patch", "delete", "list"]
 }
 
 path "secret/*" {
-  capabilities = ["create", "read", "update", "delete", "list"]
+  capabilities = ["create", "read", "update", "patch", "delete", "list"]
 }
 
 path "auth/oidc/*" {

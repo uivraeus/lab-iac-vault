@@ -232,13 +232,16 @@ Both roles restrict issuance to subdomains of `local.example.com` by default (co
 ```bash
 # 1. Generate new intermediate, sign with root, import and promote as default
 source vault-env.sh
-ansible-playbook rotate-intermediate.yml   # (future playbook)
+ansible-playbook rotate-intermediate.yml
 
-# 2. Re-apply issuer config to the new default issuer
+# 2. Re-stamp issuer name and AIA/CRL/OCSP URLs onto the new default issuer
 source env.sh
 terraform apply
+```
 
-# 3. Issue a new Vault TLS cert from the new intermediate
+Step 3 — re-issuing Vault's own TLS certificate via `configure-tls.yml` — is recommended but not strictly required for correctness: the existing TLS cert remains valid until its TTL expires, and the root CA (the trust anchor) is unchanged. Run it when you want the server cert to chain through the new intermediate:
+
+```bash
 ansible-playbook configure-tls.yml
 ```
 

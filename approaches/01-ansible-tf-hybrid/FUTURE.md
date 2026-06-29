@@ -4,18 +4,6 @@ Tracked improvements and additions that are out of scope for the current iterati
 
 ## PKI
 
-### Intermediate CA rotation playbook (`rotate-intermediate.yml`)
-
-The README references this playbook as part of the rotation workflow, but it does not exist yet. It should:
-
-- Unconditionally generate a new CSR/key via `pki_int/intermediate/generate/internal`
-- Sign the CSR against the root CA via `pki/root/sign-intermediate`
-- Import the signed cert via `pki_int/intermediate/set-signed`
-- Promote the new issuer as default using `vault write pki_int/issuer/<new-id> issuer_name=intermediate`
-- Leave the old issuer in place until CRL expiry (clients validating existing certs still need it)
-
-After the playbook, `terraform apply` re-stamps the issuer config (AIA/CRL/OCSP URLs, issuer name) onto the new default, and `configure-tls.yml` issues a new Vault TLS cert from the new intermediate.
-
 ### Tighten TLS skip-verify defaults in Ansible roles
 
 `vault_status`, `vault_init`, `vault_unseal`, and `vault_tokens` all default to `vault_xxx_tls_skip_verify: true`. Once `configure-tls.yml` has run and `local/vault-ca.pem` exists, these should use `VAULT_CACERT` instead. The challenge is that the root CA cert needs to be present on the remote host (not just on the control node) for the Vault CLI environment to use it. Options:
