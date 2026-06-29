@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Test leaf certificate issuance from pki_int/issue/server.
-# Verifies CN, SANs, and that CRL, AIA, and OCSP extensions are embedded.
+# Test leaf certificate issuance from pki_int using the pki-admin policy.
+# Verifies CN, SANs, CRL/AIA/OCSP extensions, Ed25519 key, and domain restriction.
 #
-# Required env vars: VAULT_ADDR (or TF_VAR_vault_addr), VAULT_TOKEN (or VAULT_ROOT_TOKEN),
-# and either VAULT_CACERT or VAULT_SKIP_VERIFY=true for TLS.
+# Required env vars: VAULT_ADDR (or TF_VAR_vault_addr), VAULT_TOKEN (or VAULT_ROOT_TOKEN)
+# for token creation, and either VAULT_CACERT or VAULT_SKIP_VERIFY=true for TLS.
 set -euo pipefail
 
 VAULT_ADDR="${VAULT_ADDR:-${TF_VAR_vault_addr:-}}"
@@ -11,8 +11,8 @@ if [[ -z "$VAULT_ADDR" ]]; then
   echo "ERROR: Set VAULT_ADDR or source terraform/env.sh to export TF_VAR_vault_addr" >&2
   exit 1
 fi
-VAULT_TOKEN="${VAULT_TOKEN:-${VAULT_ROOT_TOKEN:-}}"
-if [[ -z "$VAULT_TOKEN" ]]; then
+ROOT_TOKEN="${VAULT_TOKEN:-${VAULT_ROOT_TOKEN:-}}"
+if [[ -z "$ROOT_TOKEN" ]]; then
   echo "ERROR: Set VAULT_TOKEN or source ansible/vault-env.sh to export VAULT_ROOT_TOKEN" >&2
   exit 1
 fi
@@ -22,6 +22,18 @@ if [[ -n "${VAULT_CACERT:-}" ]]; then
   curl_tls_args+=(--cacert "$VAULT_CACERT")
 elif [[ "${VAULT_SKIP_VERIFY:-}" == "true" ]]; then
   curl_tls_args+=(-k)
+fi
+
+VAULT_TOKEN=$(curl -s -X POST \
+  -H "X-Vault-Token: $ROOT_TOKEN" \
+  -H "Content-Type: application/json" \
+  "${curl_tls_args[@]}" \
+  "$VAULT_ADDR/v1/auth/token/create" \
+  -d '{"policies": ["pki-admin"], "ttl": "5m", "no_default_policy": true}' \
+  | jq -r '.auth.client_token // empty')
+if [[ -z "$VAULT_TOKEN" ]]; then
+  echo "ERROR: failed to create pki-admin token" >&2
+  exit 1
 fi
 
 TEST_CN="${TEST_CN:-vault-test.local.example.com}"
@@ -96,6 +108,24 @@ if echo "$denied_error" | grep -qE "not allowed by this role"; then
   pass=$((pass + 1))
 else
   printf "[FAIL] Disallowed domain should have been rejected (got: %s)\n" "$denied_error"
+  fail=$((fail + 1))
+fi
+
+echo ""
+echo "--- sign role ---"
+csr=$(openssl req -new -newkey rsa:2048 -nodes -keyout /dev/null -subj "/CN=${TEST_CN}" 2>/dev/null)
+sign_body=$(jq -n --arg csr "$csr" --arg cn "$TEST_CN" '{"csr": $csr, "common_name": $cn, "ttl": "1h"}')
+sign_response=$(curl -s -X POST \
+  -H "X-Vault-Token: $VAULT_TOKEN" \
+  -H "Content-Type: application/json" \
+  "${curl_tls_args[@]}" \
+  "$VAULT_ADDR/v1/${PKI_INT_PATH}/sign/sign" \
+  -d "$sign_body")
+if echo "$sign_response" | jq -e '.data.certificate' >/dev/null 2>&1; then
+  printf "[PASS] pki-admin can sign CSR\n"
+  pass=$((pass + 1))
+else
+  printf "[FAIL] pki-admin sign CSR (got: %s)\n" "$(echo "$sign_response" | jq -r '.errors[0] // empty')"
   fail=$((fail + 1))
 fi
 
