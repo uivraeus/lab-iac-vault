@@ -29,7 +29,9 @@ The intermediate is set up by Ansible (`setup-intermediate.yml`) rather than Ter
 
 ### OIDC
 
-The OIDC module uses a flat policy (any authenticated user gets the `default` policy) as a starting point. Mapping to group claims from EntraID is a natural next step when policy differentiation is needed. The `vault_external_addr` variable is kept separate from `vault_addr` because Terraform connects to Vault on the internal network address, while OIDC redirect URIs must use the address reachable from the browser.
+OIDC login is gated on group membership: users not in any of the configured IdP groups are denied at login via `bound_claims`. At least one group must be mapped (`oidc_group_ids` cannot be empty), which means open-access OIDC is not possible — some group mapping is always required. Authenticated users who pass the gate receive the `default` policy; additional policies are granted via Vault external identity groups whose aliases map each IdP group object ID to its corresponding policy (`secret-reader`, `secret-writer`, `pki-admin`).
+
+The `vault_external_addr` variable is kept separate from `vault_addr` because Terraform connects to Vault on the internal network address, while OIDC redirect URIs must use the address reachable from the browser.
 
 ### Secrets handling
 
@@ -166,15 +168,17 @@ source env.sh
 terraform apply
 ```
 
-**Group-based access (optional)**
+**Group mapping (required)**
 
-If your IdP app registration is configured to include group membership in the OIDC token (EntraID: Token configuration → Add groups claim → Security groups), you can map IdP groups to Vault policies via `local/oidc.env`:
+Your IdP app registration must be configured to include group membership in the OIDC token (EntraID: Token configuration → Add groups claim → Security groups). At least one group must be mapped — `oidc_group_ids` cannot be empty, as the map drives the `bound_claims` login gate.
+
+Set group object IDs via `local/oidc.env`:
 
 ```bash
 export TF_VAR_oidc_group_ids='{"secret-reader": "<object-id>", "secret-writer": "<object-id>", "pki-admin": "<object-id>"}'
 ```
 
-Omit any key you don't want wired up. `pki-admin` is ignored unless `enable_pki=true`. Vault external identity groups are created automatically on `terraform apply`, with aliases mapping each IdP group object ID to its corresponding policy (`secret-reader`, `secret-writer`, `pki-admin`).
+Omit any key you don't want wired up. `pki-admin` is excluded from the gate and from group alias creation unless `enable_pki=true`. Users not in any of the configured groups are denied login with an explicit claim mismatch error.
 
 ### PKI (optional)
 

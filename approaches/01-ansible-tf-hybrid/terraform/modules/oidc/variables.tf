@@ -27,6 +27,12 @@ variable "oidc_group_ids" {
     condition     = length(setsubtract(keys(var.oidc_group_ids), ["secret-reader", "secret-writer", "pki-admin"])) == 0
     error_message = "Valid keys are: secret-reader, secret-writer, pki-admin"
   }
+  validation {
+    # At least one entry is required so that bound_claims always gates login.
+    # An empty map would result in no bound_claims, allowing any authenticated IdP user in.
+    condition     = length(var.oidc_group_ids) > 0
+    error_message = "oidc_group_ids must contain at least one entry"
+  }
 }
 
 variable "enable_pki" {
