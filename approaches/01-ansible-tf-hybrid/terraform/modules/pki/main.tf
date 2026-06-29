@@ -89,6 +89,21 @@ resource "vault_policy" "pki_admin" {
     path "${var.pki_int_path}/roles/*" {
       capabilities = ["read"]
     }
+    path "${var.pki_int_path}/certs" {
+      capabilities = ["list"]
+    }
+    path "${var.pki_int_path}/cert/*" {
+      capabilities = ["read"]
+    }
+    path "${var.pki_int_path}/keys" {
+      capabilities = ["list"]
+    }
+    path "${var.pki_int_path}/key/*" {
+      capabilities = ["read"]
+    }
+    path "${var.pki_int_path}/revoke" {
+      capabilities = ["create", "update"]
+    }
   EOT
 }
 
