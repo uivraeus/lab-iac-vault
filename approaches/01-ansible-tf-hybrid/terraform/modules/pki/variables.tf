@@ -29,9 +29,9 @@ variable "pki_root_common_name" {
 }
 
 variable "pki_root_cert_ttl" {
-  description = "Validity period for the root CA certificate"
-  type        = string
-  default     = "87600h"
+  description = "Validity period for the root CA certificate in seconds (default 10 years)"
+  type        = number
+  default     = 315360000
 }
 
 variable "vault_addr" {
@@ -52,13 +52,13 @@ variable "pki_allowed_domain" {
 }
 
 variable "pki_default_ttl" {
-  description = "Default TTL for issued certificates (default 30 days)"
-  type        = string
-  default     = "720h"
+  description = "Default TTL for issued certificates in seconds (default 30 days)"
+  type        = number
+  default     = 2592000
 }
 
 variable "pki_max_ttl" {
-  description = "Maximum TTL for issued certificates (default 1 year)"
-  type        = string
-  default     = "8760h"
+  description = "Maximum TTL for issued certificates in seconds (default 1 year)"
+  type        = number
+  default     = 31536000
 }
