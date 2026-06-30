@@ -19,6 +19,7 @@ test-scripts/           Vault API test scripts, usable across all approaches
 docs/decisions/         Architecture Decision Records
 approaches/             Self-contained alternative implementations
   01-ansible-tf-hybrid/ Ansible bootstrap + Terraform config
+  02-tf-heavy/          Ansible bootstrap only; Terraform manages PKI lifecycle
 ```
 
 ## Target Environment
@@ -53,6 +54,7 @@ This enables a pre-commit hook that runs `ansible-lint` on any staged Ansible fi
 | # | Name | Description | Status |
 |---|------|-------------|--------|
 | 01 | ansible-tf-hybrid | Ansible bootstrap, Terraform config | Initial version |
+| 02 | tf-heavy | Ansible bootstrap only; Terraform manages full PKI lifecycle including intermediate CA rotation | Initial version |
 
 See each approach's `README.md` for quickstart instructions and design decisions.
 

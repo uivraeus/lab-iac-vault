@@ -1,0 +1,16 @@
+---
+- name: Replace Vault TLS certificate with one issued by internal PKI
+  hosts: all
+  become: true
+  vars:
+    vault_pki_output_dir: "{{ playbook_dir }}/../../../local"
+  tasks:
+    - name: Issue and install PKI-signed TLS certificate
+      ansible.builtin.include_role:
+        name: vault_pki
+        tasks_from: configure_tls
+    - name: Apply pending handlers
+      ansible.builtin.meta: flush_handlers
+    - name: Unseal Vault
+      ansible.builtin.include_role:
+        name: vault_unseal

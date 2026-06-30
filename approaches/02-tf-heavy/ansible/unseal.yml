@@ -1,0 +1,6 @@
+---
+- name: Unseal Vault
+  hosts: all
+  become: false
+  roles:
+    - role: vault_unseal
